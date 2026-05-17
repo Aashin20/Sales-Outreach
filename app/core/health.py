@@ -48,7 +48,7 @@ async def is_all_healthy(
     Check all critical dependencies.
     
     Returns:
-        Healthy if all are healthy, else dict of service -> error message
+        Healthy if all are healthy
     """
     checks = {
         "postgres": await check_postgres_health(db_session),
