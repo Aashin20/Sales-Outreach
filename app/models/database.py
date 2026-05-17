@@ -13,3 +13,13 @@ import enum
 class Base(DeclarativeBase):
     pass
 
+
+class JobStatus(str, enum.Enum):
+    PENDING = "pending"
+    VALIDATING = "validating"
+    FETCHING = "fetching"
+    REASONING = "reasoning"
+    COMPOSING = "composing"
+    DELIVERING_WEBHOOK = "delivering_webhook"
+    COMPLETED = "completed"
+    FAILED = "failed"
