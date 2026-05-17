@@ -11,3 +11,5 @@ from app.models.database import Base
 from app.routers import health, outreach, feedback
 from app.worker.settings import get_redis_settings
 import uuid
+
+logger = structlog.get_logger(__name__)
