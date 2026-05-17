@@ -56,3 +56,13 @@ async def lifespan(app: FastAPI):
 
     logger.info("app_stopped")
 
+
+
+app = FastAPI(
+    title="Sales Outreach API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)
