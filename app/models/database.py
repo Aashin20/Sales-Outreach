@@ -125,3 +125,35 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class TraceLog(Base):
+
+    __tablename__ = "trace_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False, index=True)
+
+    stage = Column(String(50), nullable=False)  
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    model = Column(String(100), nullable=True)
+    prompt_version = Column(String(20), nullable=True)
+    tokens_in = Column(Integer, nullable=True)
+    tokens_out = Column(Integer, nullable=True)
+    cost_usd = Column(Float, nullable=True)
+
+    latency_ms = Column(Integer, nullable=True)
+
+    cache_hit = Column(Boolean, default=False)
+
+    retries = Column(Integer, default=0)
+
+    decision = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+    success = Column(Boolean, default=True)
+
+    __table_args__ = (
+        Index("ix_trace_logs_job_stage", "job_id", "stage"),
+        Index("ix_trace_logs_timestamp", "timestamp"),
+    )
