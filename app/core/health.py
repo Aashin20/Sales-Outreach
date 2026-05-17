@@ -40,7 +40,7 @@ async def check_redis_health(redis: Redis) -> str:
         return error_msg
 
 
-async def check_all_dependencies(
+async def is_all_healthy(
     db_session: AsyncSession,
     redis: Redis,
 ) -> Dict[str, str]:
@@ -48,11 +48,10 @@ async def check_all_dependencies(
     Check all critical dependencies.
     
     Returns:
-        Dict of service -> status (healthy | error message)
+        Healthy if all are healthy, else dict of service -> error message
     """
     checks = {
         "postgres": await check_postgres_health(db_session),
         "redis": await check_redis_health(redis),
     }
-    return checks
-
+    return (v == "healthy" for v in checks.values())
