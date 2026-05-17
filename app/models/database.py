@@ -9,3 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 import enum
 
+
+class Base(DeclarativeBase):
+    pass
+
