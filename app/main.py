@@ -66,3 +66,29 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+#Middlewares
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled_exception", path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": None},
+    )
+
