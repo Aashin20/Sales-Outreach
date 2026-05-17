@@ -23,3 +23,18 @@ async def check_postgres_health(db_session: AsyncSession) -> str:
         logger.error("health_postgres_failed", error=str(e))
         return error_msg
 
+
+async def check_redis_health(redis: Redis) -> str:
+    """
+    Check Redis connection health.
+    
+    Returns:
+        "healthy" if OK, else error message
+    """
+    try:
+        await redis.ping()
+        return "healthy"
+    except Exception as e:
+        error_msg = f"unhealthy: {str(e)[:100]}"
+        logger.error("health_redis_failed", error=str(e))
+        return error_msg
