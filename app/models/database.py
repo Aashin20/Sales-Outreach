@@ -105,3 +105,23 @@ class Feedback(Base):
 
     job = relationship("Job", back_populates="feedback_entries")
 
+
+class ApiKey(Base):
+
+    __tablename__ = "api_keys"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key_hash = Column(String(128), unique=True, nullable=False, index=True)
+    key_prefix = Column(String(8), nullable=False) 
+    name = Column(String(255), nullable=False)
+
+
+    rate_limit_per_minute = Column(Integer, default=60)
+    daily_cost_limit_usd = Column(Float, default=10.0)
+
+    webhook_url = Column(String(2048), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
