@@ -38,3 +38,21 @@ async def check_redis_health(redis: Redis) -> str:
         error_msg = f"unhealthy: {str(e)[:100]}"
         logger.error("health_redis_failed", error=str(e))
         return error_msg
+
+
+async def check_all_dependencies(
+    db_session: AsyncSession,
+    redis: Redis,
+) -> Dict[str, str]:
+    """
+    Check all critical dependencies.
+    
+    Returns:
+        Dict of service -> status (healthy | error message)
+    """
+    checks = {
+        "postgres": await check_postgres_health(db_session),
+        "redis": await check_redis_health(redis),
+    }
+    return checks
+
