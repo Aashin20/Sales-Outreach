@@ -3,3 +3,5 @@ from typing import Dict
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
+
+logger = structlog.get_logger(__name__)
