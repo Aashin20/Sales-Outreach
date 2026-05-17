@@ -83,3 +83,25 @@ class Job(Base):
         Index("ix_jobs_created_at", "created_at"),
     )
 
+
+class Feedback(Base):
+
+    __tablename__ = "feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    api_key_id = Column(UUID(as_uuid=True), ForeignKey("api_keys.id"), nullable=False)
+
+    rating = Column(String(20), nullable=False) 
+    comment = Column(Text, nullable=True)
+
+
+    hook_quality = Column(Integer, nullable=True)  # 1-5
+    message_quality = Column(Integer, nullable=True)  # 1-5
+    evidence_accuracy = Column(Boolean, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+    job = relationship("Job", back_populates="feedback_entries")
+
