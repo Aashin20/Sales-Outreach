@@ -20,3 +20,16 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 KEY_PREFIX = "oai_"
 KEY_LENGTH = 48
 
+
+def generate_api_key() -> tuple[str, str, str]:
+    """
+    Generate a new API key.
+    Returns: (plaintext_key, key_hash, key_prefix)
+    The plaintext is shown once and never stored.
+    """
+    random_part = secrets.token_urlsafe(KEY_LENGTH)
+    plaintext = f"{KEY_PREFIX}{random_part}"
+    key_hash = bcrypt.hashpw(plaintext.encode(), bcrypt.gensalt()).decode()
+    prefix = plaintext[:8]
+    return plaintext, key_hash, prefix
+
