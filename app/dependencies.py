@@ -27,3 +27,11 @@ async def get_redis(request: Request) -> Redis:
     """Fetch Redis connection."""
     return request.app.state.redis
 
+
+async def get_authenticated_key(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    api_key: Annotated[str | None, Depends(api_key_header)],
+) -> ApiKey:
+    """Validate the API key and return the key record."""
+    return await validate_api_key(db, api_key)
+
