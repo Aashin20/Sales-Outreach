@@ -37,3 +37,33 @@ async def healthz():
         timestamp=datetime.now(timezone.utc),
     )
 
+
+@router.get(
+    "/readyz",
+    response_model=ReadinessResponse,
+    summary="Readiness probe",
+    description="Returns 200 only if all services are reachable.",
+    responses={
+        200: {"description": "Service is ready to accept traffic"},
+        503: {"description": "Service is not ready — dependencies unhealthy"},
+    },
+)
+async def readyz(request: Request):
+    async with request.app.state.db_session_factory() as session:
+        checks = await check_all_dependencies(session, request.app.state.redis)
+
+    all_healthy = is_all_healthy(checks)
+
+    response = ReadinessResponse(
+        status="ready" if all_healthy else "not_ready",
+        timestamp=datetime.now(timezone.utc),
+        checks=checks,
+    )
+
+    if not all_healthy:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=response.model_dump(mode="json"),
+        )
+
+    return response
