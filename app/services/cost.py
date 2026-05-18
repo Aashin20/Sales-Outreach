@@ -63,3 +63,39 @@ class CostService:
         if raw is None:
             return 0.0
         return int(raw) / 1_000_000
+
+    async def check_key_budget(
+        self, api_key_id: UUID, key_limit: float
+    ) -> dict:
+        """
+        Check if an API key is within budget.
+        Returns status info including warning/blocked state.
+        """
+        spent = await self.get_key_spend_today(api_key_id)
+        ratio = spent / key_limit if key_limit > 0 else 0
+
+        result = {
+            "spent_usd": spent,
+            "limit_usd": key_limit,
+            "ratio": ratio,
+            "blocked": ratio >= 1.0,
+            "warning": ratio >= self.settings.cost_warning_threshold,
+        }
+
+        if result["blocked"]:
+            logger.warning(
+                "key_budget_exceeded",
+                api_key_id=str(api_key_id),
+                spent=spent,
+                limit=key_limit,
+            )
+        elif result["warning"]:
+            logger.info(
+                "key_budget_warning",
+                api_key_id=str(api_key_id),
+                spent=spent,
+                limit=key_limit,
+                ratio=ratio,
+            )
+
+        return result
