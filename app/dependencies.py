@@ -21,3 +21,9 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+
+
+async def get_redis(request: Request) -> Redis:
+    """Fetch Redis connection."""
+    return request.app.state.redis
+
