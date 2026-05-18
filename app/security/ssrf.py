@@ -30,3 +30,66 @@ BLOCKED_HOSTNAMES = {
 # Only allow HTTP/HTTPS
 ALLOWED_SCHEMES = {"http", "https"}
 
+
+class SSRFError(Exception):
+    """Raised when a URL fails SSRF validation."""
+    pass
+
+
+def validate_url(url: str) -> str:
+    """
+    Validate a URL against SSRF attacks.
+    Returns the validated URL or raises SSRFError.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise SSRFError(f"Failed to parse URL: {url}")
+
+    # Scheme check
+    if parsed.scheme not in ALLOWED_SCHEMES:
+        raise SSRFError(f"Blocked scheme: {parsed.scheme}")
+
+    # Hostname check
+    hostname = parsed.hostname
+    if not hostname:
+        raise SSRFError("No hostname in URL")
+
+    hostname_lower = hostname.lower()
+    if hostname_lower in BLOCKED_HOSTNAMES:
+        raise SSRFError(f"Blocked hostname: {hostname}")
+
+    # Port check — block non-standard ports that might indicate internal services
+    port = parsed.port
+    if port and port not in (80, 443):
+        raise SSRFError(f"Blocked non-standard port: {port}")
+
+    # Resolve hostname to IP and check against blocked ranges
+    try:
+        resolved_ips = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise SSRFError(f"Cannot resolve hostname: {hostname}")
+
+    for family, _, _, _, sockaddr in resolved_ips:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            raise SSRFError(f"Invalid resolved IP: {ip_str}")
+
+        for network in BLOCKED_NETWORKS:
+            if ip in network:
+                logger.warning(
+                    "ssrf_blocked",
+                    url=url,
+                    hostname=hostname,
+                    resolved_ip=ip_str,
+                    blocked_network=str(network),
+                )
+                raise SSRFError(
+                    f"Blocked: {hostname} resolves to private IP {ip_str}"
+                )
+
+    return url
+
+
