@@ -12,3 +12,12 @@ from app.config import get_settings
 logger = structlog.get_logger(__name__)
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    """Yield a database session from session factory."""
+    async with request.app.state.db_session_factory() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
