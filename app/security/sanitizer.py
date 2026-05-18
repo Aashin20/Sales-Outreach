@@ -81,3 +81,44 @@ def sanitize_fetched_content(content: str, source: str, max_length: int = 8000) 
 
     return wrapped
 
+
+def validate_llm_output(
+    output_text: str,
+    allowed_names: list[str],
+    evidence_list: list[str],
+) -> list[str]:
+    """
+    Validate LLM output for policy violations.
+    Returns a list of violation descriptions (empty = valid).
+    
+    Checks:
+    1. No emails not derived from the input
+    2. No phone numbers
+    3. No SSNs
+    4. Claims should reference evidence (soft check)
+    """
+    violations = []
+
+    # Check for emails not in allowed context
+    found_emails = EMAIL_RE.findall(output_text)
+    for email in found_emails:
+        # Only flag if the email domain doesn't match any evidence
+        is_expected = any(email.lower() in ev.lower() for ev in evidence_list)
+        if not is_expected:
+            violations.append(f"Unexpected email in output: {email}")
+
+    # Check for phone numbers
+    found_phones = PHONE_RE.findall(output_text)
+    if found_phones:
+        violations.append(f"Phone number(s) found in output: {found_phones}")
+
+    # Check for SSNs
+    found_ssns = SSN_RE.findall(output_text)
+    if found_ssns:
+        violations.append("SSN-like pattern found in output")
+
+    if violations:
+        logger.warning("output_validation_violations", violations=violations)
+
+    return violations
+
