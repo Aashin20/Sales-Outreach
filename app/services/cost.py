@@ -99,3 +99,29 @@ class CostService:
             )
 
         return result
+
+    async def check_global_budget(self) -> dict:
+        """
+        Check if the global daily budget is within limits.
+        At limit: degrade gracefully (queue, don't reject).
+        """
+        spent = await self.get_global_spend_today()
+        limit = self.settings.global_daily_cost_limit_usd
+        ratio = spent / limit if limit > 0 else 0
+
+        result = {
+            "spent_usd": spent,
+            "limit_usd": limit,
+            "ratio": ratio,
+            "degraded": ratio >= 1.0,
+            "warning": ratio >= self.settings.cost_warning_threshold,
+        }
+
+        if result["degraded"]:
+            logger.critical(
+                "global_budget_exceeded",
+                spent=spent,
+                limit=limit,
+            )
+
+        return result
