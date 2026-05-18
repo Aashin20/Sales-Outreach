@@ -47,3 +47,12 @@ class CostService:
             api_key_id=str(api_key_id),
             cost_usd=cost_usd,
         )
+
+    # Check Budget
+
+    async def get_key_spend_today(self, api_key_id: UUID) -> float:
+        """Get today's spend for an API key in USD."""
+        raw = await self.redis.get(self._per_key_redis_key(api_key_id))
+        if raw is None:
+            return 0.0
+        return int(raw) / 1_000_000
