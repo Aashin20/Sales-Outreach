@@ -35,3 +35,35 @@ async def get_authenticated_key(
     """Validate the API key and return the key record."""
     return await validate_api_key(db, api_key)
 
+
+async def check_cost_budget(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis: Annotated[Redis, Depends(get_redis)],
+    api_key: Annotated[ApiKey, Depends(get_authenticated_key)],
+) -> ApiKey:
+    """
+    Check cost budget before processing.
+    Returns the API key if within budget, raises 429 if exceeded.
+    """
+    settings = get_settings()
+    cost_service = CostService(redis, settings)
+
+    budget = await cost_service.check_key_budget(
+        api_key.id, api_key.daily_cost_limit_usd
+    )
+
+    if budget["blocked"]:
+        retry_after = cost_service.seconds_until_midnight_utc()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Daily cost limit exceeded",
+                "spent_usd": budget["spent_usd"],
+                "limit_usd": budget["limit_usd"],
+                "retry_after_seconds": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    return api_key
