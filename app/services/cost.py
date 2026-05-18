@@ -125,3 +125,27 @@ class CostService:
             )
 
         return result
+
+    def seconds_until_midnight_utc(self) -> int:
+        """Seconds remaining until midnight UTC — used for Retry-After header."""
+        now = datetime.now(timezone.utc)
+        midnight = now.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        # Add 24 hours to get next midnight
+        from datetime import timedelta
+        next_midnight = midnight + timedelta(days=1)
+        return int((next_midnight - now).total_seconds())
+
+    async def get_cost_headers(self, api_key_id: UUID, key_limit: float) -> dict:
+        """
+        Generate cost-related response headers.
+        """
+        budget = await self.check_key_budget(api_key_id, key_limit)
+        headers = {
+            "X-Cost-Spent-Today": f"{budget['spent_usd']:.6f}",
+            "X-Cost-Limit-Today": f"{budget['limit_usd']:.2f}",
+        }
+        if budget["warning"] and not budget["blocked"]:
+            headers["X-Cost-Warning"] = "approaching-limit"
+        return headers
