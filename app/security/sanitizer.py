@@ -122,3 +122,12 @@ def validate_llm_output(
 
     return violations
 
+
+def strip_html_tags(content: str) -> str:
+    """Remove HTML tags from content, keeping text."""
+    return re.sub(r"<[^>]+>", " ", content)
+
+
+def normalize_whitespace(content: str) -> str:
+    """Collapse multiple whitespace characters into single spaces."""
+    return re.sub(r"\s+", " ", content).strip()
