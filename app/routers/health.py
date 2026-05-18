@@ -7,3 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.health import check_postgres_health, check_redis_health
 from app.models import HealthResponse, ReadinessResponse
 
+
+router = APIRouter(tags=["Health"])
+
