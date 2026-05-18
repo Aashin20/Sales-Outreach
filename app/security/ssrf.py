@@ -93,3 +93,10 @@ def validate_url(url: str) -> str:
     return url
 
 
+def validate_domain_for_fetch(domain: str) -> str:
+    """
+    Given a bare domain, construct and validate the HTTPS URL.
+    Returns the validated URL.
+    """
+    url = f"https://{domain}"
+    return validate_url(url)
