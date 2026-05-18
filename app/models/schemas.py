@@ -94,3 +94,94 @@ class FeedbackRequest(BaseModel):
             raise ValueError(f"Rating must be one of: {allowed}")
         return v
 
+
+# ── Response Schemas ─────────────────────────────────────────────────
+
+class OutreachJobCreated(BaseModel):
+    """Response for newly created job (202 Accepted)."""
+    job_id: uuid.UUID
+    status: str = "pending"
+    idempotency_key: str
+    message: str = "Job submitted for processing"
+    poll_url: str
+
+
+class OutreachJobCached(BaseModel):
+    """Response when returning a cached job (200 OK)."""
+    job_id: uuid.UUID
+    status: str
+    idempotency_key: str
+    message: str = "Returning cached result"
+    cached: bool = True
+    result: Optional[OutreachResult] = None
+
+
+class OutreachResult(BaseModel):
+    """The full outreach result payload."""
+    hook: str
+    hook_reasoning: str
+    evidence: list[str]
+    confidence: float = Field(ge=0.0, le=1.0)
+    subject: str
+    message_body: str
+    tone: str
+    call_to_action: str
+
+
+class JobStatusResponse(BaseModel):
+    """GET /v1/outreach/{job_id} response."""
+    job_id: uuid.UUID
+    status: str
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    result: Optional[OutreachResult] = None
+
+    # Cost transparency
+    total_tokens_in: int = 0
+    total_tokens_out: int = 0
+    total_cost_usd: float = 0.0
+
+    # Prompt versions for reproducibility
+    pick_hook_prompt_version: Optional[str] = None
+    compose_message_prompt_version: Optional[str] = None
+    pick_hook_model: Optional[str] = None
+    compose_message_model: Optional[str] = None
+
+
+class FeedbackResponse(BaseModel):
+    """POST /v1/outreach/{job_id}/feedback response."""
+    feedback_id: uuid.UUID
+    job_id: uuid.UUID
+    message: str = "Feedback recorded"
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+    timestamp: datetime
+    version: str = "1.0.0"
+
+
+class ReadinessResponse(BaseModel):
+    """Readiness check response (includes dependency status)."""
+    status: str
+    timestamp: datetime
+    checks: dict[str, str]
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response body."""
+    error: str
+    detail: Optional[str] = None
+    retry_after: Optional[int] = None
+
+
+class CostWarningHeaders(BaseModel):
+    """Model for cost-related response headers."""
+    x_cost_spent: float
+    x_cost_limit: float
+    x_cost_warning: Optional[str] = None
+
+
