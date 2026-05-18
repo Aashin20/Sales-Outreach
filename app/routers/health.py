@@ -10,3 +10,14 @@ from app.models import HealthResponse, ReadinessResponse
 
 router = APIRouter(tags=["Health"])
 
+
+async def check_all_dependencies(db_session: AsyncSession, redis: Redis) -> Dict[str, str]:
+    return {
+        "postgres": await check_postgres_health(db_session),
+        "redis": await check_redis_health(redis),
+    }
+
+
+def is_all_healthy(checks: Dict[str, str]) -> bool:
+    return all(result == "healthy" for result in checks.values())
+
