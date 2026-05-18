@@ -59,3 +59,38 @@ class OutreachRequest(BaseModel):
         return v
 
 
+class FeedbackRequest(BaseModel):
+    """POST /v1/outreach/{job_id}/feedback request body."""
+    rating: str = Field(
+        ...,
+        description="Thumbs up or down",
+        examples=["thumbs_up"],
+    )
+    comment: Optional[str] = Field(
+        None,
+        max_length=2000,
+        description="Free-text feedback",
+    )
+    hook_quality: Optional[int] = Field(
+        None,
+        ge=1, le=5,
+        description="Hook quality 1-5",
+    )
+    message_quality: Optional[int] = Field(
+        None,
+        ge=1, le=5,
+        description="Message quality 1-5",
+    )
+    evidence_accuracy: Optional[bool] = Field(
+        None,
+        description="Was the evidence accurate?",
+    )
+
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: str) -> str:
+        allowed = {"thumbs_up", "thumbs_down"}
+        if v not in allowed:
+            raise ValueError(f"Rating must be one of: {allowed}")
+        return v
+
