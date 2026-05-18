@@ -185,3 +185,17 @@ class CostWarningHeaders(BaseModel):
     x_cost_warning: Optional[str] = None
 
 
+# ── Webhook Schemas ──────────────────────────────────────────────────
+
+class WebhookPayload(BaseModel):
+    """Payload delivered to webhook URL on job completion."""
+    event: str = "outreach.completed"
+    job_id: uuid.UUID
+    status: str
+    timestamp: datetime
+    result: Optional[OutreachResult] = None
+    error_message: Optional[str] = None
+
+
+# Fix forward reference for OutreachJobCached
+OutreachJobCached.model_rebuild()
