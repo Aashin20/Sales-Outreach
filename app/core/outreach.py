@@ -75,3 +75,24 @@ async def create_outreach_job(
 
     return job, idemp_key, False
 
+
+async def get_outreach_job_with_result(
+    job: Job,
+) -> Optional[OutreachResult]:
+    """
+    Build the outreach result from a completed job.
+    
+    Returns None if job is not completed or has no result.
+    """
+    if job.status == JobStatus.COMPLETED and job.hook:
+        return OutreachResult(
+            hook=job.hook,
+            hook_reasoning=job.hook_reasoning or "",
+            evidence=job.evidence or [],
+            confidence=job.confidence or 0.0,
+            subject=job.subject or "",
+            message_body=job.message_body or "",
+            tone=job.tone or "",
+            call_to_action=job.call_to_action or "",
+        )
+    return None
