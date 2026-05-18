@@ -56,3 +56,10 @@ class CostService:
         if raw is None:
             return 0.0
         return int(raw) / 1_000_000
+
+    async def get_global_spend_today(self) -> float:
+        """Get today's total global spend in USD."""
+        raw = await self.redis.get(self._global_redis_key())
+        if raw is None:
+            return 0.0
+        return int(raw) / 1_000_000
