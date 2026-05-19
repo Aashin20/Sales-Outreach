@@ -11,3 +11,14 @@ logger = structlog.get_logger(__name__)
 
 # Retryable HTTP status codes
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+class FetchError(Exception):
+    """Non-retryable fetch error."""
+    pass
+
+
+class RetryableFetchError(Exception):
+    """Retryable fetch error."""
+    pass
+
