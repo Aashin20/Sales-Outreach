@@ -102,3 +102,12 @@ app.include_router(outreach)
 app.include_router(feedback)
 
 
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return {
+        "service": "Sales Outreach API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/v1/healthz",
+    }
