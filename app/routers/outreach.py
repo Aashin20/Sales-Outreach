@@ -69,3 +69,48 @@ async def create_outreach(
         headers=cost_headers,
     )
 
+
+@router.get(
+    "/{job_id}",
+    response_model=JobStatusResponse,
+    summary="Get job status and result",
+    description="Fetch the current status of an outreach job. Returns the full result when completed.",
+    responses={
+        200: {"description": "Job status (and result if completed)"},
+        401: {"description": "Missing or invalid API key"},
+        404: {"description": "Job not found"},
+    },
+)
+async def get_outreach_status(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    api_key: ApiKey = Depends(check_cost_budget),
+):
+    """Get the status and result of an outreach job."""
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    outreach_result = await get_outreach_job_with_result(job)
+
+    return JobStatusResponse(
+        job_id=job.id,
+        status=job.status.value,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        error_message=job.error_message,
+        result=outreach_result,
+        total_tokens_in=job.total_tokens_in,
+        total_tokens_out=job.total_tokens_out,
+        total_cost_usd=job.total_cost_usd,
+        pick_hook_prompt_version=job.pick_hook_prompt_version,
+        compose_message_prompt_version=job.compose_message_prompt_version,
+        pick_hook_model=job.pick_hook_model,
+        compose_message_model=job.compose_message_model,
+    )
