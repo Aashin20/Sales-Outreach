@@ -138,3 +138,33 @@ class WebFetcher:
             f"and are known for driving growth initiatives."
         )
         return mock_profile
+
+    async def fetch_all_signals(
+        self, domain: str, person_name: str
+    ) -> dict[str, Optional[str]]:
+        """
+        Fetch all signals concurrently using asyncio.gather.
+        Homepage, news, and profile are independent — fetch in parallel.
+        """
+        homepage_task = self.fetch_homepage(domain)
+        news_task = self.fetch_news(domain)
+        profile_task = self.fetch_profile(person_name, domain)
+
+        # Independent fetches — run concurrently
+        homepage, news, profile = await asyncio.gather(
+            homepage_task,
+            news_task,
+            profile_task,
+            return_exceptions=True,
+        )
+
+        # Handle exceptions from gather
+        results = {}
+        for name, value in [("homepage", homepage), ("news", news), ("profile", profile)]:
+            if isinstance(value, Exception):
+                logger.error("signal_fetch_exception", signal=name, error=str(value))
+                results[name] = None
+            else:
+                results[name] = value
+
+        return results
