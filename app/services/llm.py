@@ -112,3 +112,154 @@ class SchemaViolationError(Exception):
     """LLM output didn't match expected schema."""
     pass
 
+
+# ── LLM Client ──────────────────────────────────────────────────────
+
+
+class LLMClient:
+
+    # Groq pricing (approximate, per 1M tokens)
+    PRICING = {
+        "llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
+        "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
+        "llama-3.1-70b-versatile": {"input": 0.59, "output": 0.79},
+        "mixtral-8x7b-32768": {"input": 0.24, "output": 0.24},
+        "gemma2-9b-it": {"input": 0.20, "output": 0.20},
+    }
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.client = AsyncGroq(api_key=settings.groq_api_key)
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=settings.cb_failure_threshold,
+            recovery_timeout=settings.cb_recovery_timeout_seconds,
+            window_seconds=settings.cb_expected_exception_window_seconds,
+        )
+        self._prompts_cache: dict[str, str] = {}
+
+    def _load_prompt(self, prompt_name: str, version: str) -> str:
+        """Load a prompt from file with caching."""
+        cache_key = f"{prompt_name}.{version}"
+        if cache_key not in self._prompts_cache:
+            # Look in prompts/ directory
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            prompt_path = os.path.join(base_dir, "prompts", f"{prompt_name}.{version}.md")
+            try:
+                with open(prompt_path, "r") as f:
+                    self._prompts_cache[cache_key] = f.read()
+            except FileNotFoundError:
+                raise NonRetryableLLMError(f"Prompt file not found: {prompt_path}")
+        return self._prompts_cache[cache_key]
+
+    def _estimate_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
+        """Estimate cost in USD for a completion."""
+        pricing = self.PRICING.get(model, {"input": 1.0, "output": 1.0})
+        cost = (tokens_in * pricing["input"] + tokens_out * pricing["output"]) / 1_000_000
+        return cost
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential_jitter(initial=1, max=15, jitter=3),
+        retry=retry_if_exception_type(RetryableLLMError),
+        reraise=True,
+    )
+    async def _call_llm(
+        self,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.3,
+    ) -> dict[str, Any]:
+        """
+        Raw LLM call with circuit breaker and retries.
+        Returns: {content, tokens_in, tokens_out, cost_usd, model}
+        """
+        if not self.circuit_breaker.can_execute():
+            raise CircuitBreakerOpen("LLM circuit breaker is OPEN — provider may be down")
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=temperature,
+                response_format={"type": "json_object"},
+                max_tokens=2000,
+            )
+
+            self.circuit_breaker.record_success()
+
+            tokens_in = response.usage.prompt_tokens if response.usage else 0
+            tokens_out = response.usage.completion_tokens if response.usage else 0
+            cost = self._estimate_cost(model, tokens_in, tokens_out)
+
+            return {
+                "content": response.choices[0].message.content,
+                "tokens_in": tokens_in,
+                "tokens_out": tokens_out,
+                "cost_usd": cost,
+                "model": model,
+            }
+
+        except RateLimitError as e:
+            self.circuit_breaker.record_failure()
+            raise RetryableLLMError(f"Rate limited: {e}")
+        except APIConnectionError as e:
+            self.circuit_breaker.record_failure()
+            raise RetryableLLMError(f"Connection error: {e}")
+        except APIError as e:
+            if e.status_code and e.status_code >= 500:
+                self.circuit_breaker.record_failure()
+                raise RetryableLLMError(f"Server error: {e}")
+            raise NonRetryableLLMError(f"API error: {e}")
+
+    async def _call_with_schema_validation(
+        self,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        schema_class: type[BaseModel],
+        max_schema_retries: int = 2,
+        temperature: float = 0.3,
+    ) -> tuple[BaseModel, dict]:
+        """
+        Call LLM and validate output against Pydantic schema.
+        Retries on schema violation with error feedback.
+        Returns: (validated_object, raw_llm_stats)
+        """
+        total_stats = {"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "retries": 0}
+        last_error = None
+
+        for attempt in range(max_schema_retries + 1):
+            prompt = user_prompt
+            if last_error and attempt > 0:
+                prompt += (
+                    f"\n\n[SCHEMA VALIDATION ERROR on previous attempt: {last_error}. "
+                    f"Please fix your output to match the required JSON schema exactly.]"
+                )
+                total_stats["retries"] += 1
+
+            result = await self._call_llm(model, system_prompt, prompt, temperature)
+            total_stats["tokens_in"] += result["tokens_in"]
+            total_stats["tokens_out"] += result["tokens_out"]
+            total_stats["cost_usd"] += result["cost_usd"]
+
+            try:
+                content = result["content"]
+                parsed = json.loads(content)
+                validated = schema_class.model_validate(parsed)
+                return validated, total_stats
+            except (json.JSONDecodeError, ValidationError) as e:
+                last_error = str(e)
+                logger.warning(
+                    "schema_validation_failed",
+                    attempt=attempt + 1,
+                    error=last_error,
+                    schema=schema_class.__name__,
+                )
+
+        raise SchemaViolationError(
+            f"Failed to get valid {schema_class.__name__} after {max_schema_retries + 1} attempts: {last_error}"
+        )
