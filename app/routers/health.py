@@ -8,7 +8,7 @@ from app.core.health import check_postgres_health, check_redis_health
 from app.models import HealthResponse, ReadinessResponse
 
 
-router = APIRouter(tags=["Health"])
+router = APIRouter(tags=["Health"],prefix="/v1")
 
 
 async def check_all_dependencies(db_session: AsyncSession, redis: Redis) -> Dict[str, str]:
