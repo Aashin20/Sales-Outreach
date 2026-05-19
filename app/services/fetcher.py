@@ -88,4 +88,18 @@ class WebFetcher:
             except Exception as e:
                 raise FetchError(f"Unexpected error fetching {url}: {e}")
 
- 
+    async def fetch_homepage(self, domain: str) -> Optional[str]:
+        """Fetch and clean a company homepage."""
+        try:
+            url = validate_domain_for_fetch(domain)
+            raw = await self._fetch_url(url)
+            # Strip HTML, normalize whitespace, truncate
+            text = strip_html_tags(raw)
+            text = normalize_whitespace(text)
+            return text[:10000]  # Reasonable limit
+        except (FetchError, SSRFError) as e:
+            logger.warning("homepage_fetch_failed", domain=domain, error=str(e))
+            return None
+        except RetryableFetchError as e:
+            logger.warning("homepage_fetch_exhausted_retries", domain=domain, error=str(e))
+            return None
