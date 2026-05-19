@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 import structlog
 from groq import AsyncGroq, APIError, RateLimitError, APIConnectionError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 from tenacity import (retry,stop_after_attempt,
                       wait_exponential_jitter,retry_if_exception_type,)
 from app.config import Settings
@@ -21,6 +21,35 @@ class HookResult(BaseModel):
     reasoning: str
     evidence: list[str]
     confidence: float  
+
+    @field_validator("evidence", mode="before")
+    @classmethod
+    def normalize_evidence(cls, value: Any) -> list[str]:
+        """Normalize evidence items when the model returns escaped/quoted strings."""
+        if not isinstance(value, list):
+            return value
+
+        normalized: list[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                normalized.append(str(item))
+                continue
+
+            cleaned = item.strip()
+            for _ in range(2):
+                if len(cleaned) >= 2 and cleaned[0] == '"' and cleaned[-1] == '"':
+                    try:
+                        parsed = json.loads(cleaned)
+                    except json.JSONDecodeError:
+                        break
+                    if isinstance(parsed, str):
+                        cleaned = parsed.strip()
+                        continue
+                break
+
+            normalized.append(cleaned)
+
+        return normalized
 
 
 class OutreachMessage(BaseModel):
