@@ -53,3 +53,28 @@ async def shutdown(ctx: dict[str, Any]):
         await ctx["redis"].close()
     logger.info("worker_stopped")
 
+
+async def run_research_pipeline(ctx: dict[str, Any], job_id: str):
+    """
+    ARQ task: execute the research pipeline for a job.
+    """
+    logger.info("task_started", job_id=job_id)
+
+    settings = ctx["settings"]
+
+    async with ctx["db_session_factory"]() as db:
+        pipeline = ResearchPipeline(
+            settings=settings,
+            db=db,
+            cache=ctx["cache"],
+            cost=ctx["cost"],
+            fetcher=ctx["fetcher"],
+            llm=ctx["llm"],
+            webhook=ctx["webhook"],
+            tracer=ctx["tracer"],
+        )
+
+        await pipeline.run(uuid.UUID(job_id))
+
+    logger.info("task_completed", job_id=job_id)
+
