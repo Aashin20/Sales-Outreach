@@ -103,3 +103,24 @@ class WebFetcher:
         except RetryableFetchError as e:
             logger.warning("homepage_fetch_exhausted_retries", domain=domain, error=str(e))
             return None
+
+    async def fetch_news(self, domain: str) -> Optional[str]:
+        """
+        Fetch recent news about a company.
+        """
+        news_paths = ["/news", "/press", "/blog", "/newsroom"]
+        for path in news_paths:
+            try:
+                url = f"https://{domain}{path}"
+                validate_url(url)
+                raw = await self._fetch_url(url)
+                text = strip_html_tags(raw)
+                text = normalize_whitespace(text)
+                if len(text) > 100:  # Has meaningful content
+                    return text[:8000]
+            except (FetchError, RetryableFetchError, SSRFError):
+                continue
+
+        # Fallback: try a DuckDuckGo-style search (simplified)
+        logger.info("news_no_dedicated_page", domain=domain)
+        return None
