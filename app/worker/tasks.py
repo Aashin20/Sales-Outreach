@@ -46,3 +46,10 @@ async def startup(ctx: dict[str, Any]):
 
     logger.info("worker_started")
 
+
+async def shutdown(ctx: dict[str, Any]):
+    """Clean up worker resources on shutdown."""
+    if "redis" in ctx:
+        await ctx["redis"].close()
+    logger.info("worker_stopped")
+
