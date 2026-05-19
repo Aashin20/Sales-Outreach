@@ -15,3 +15,34 @@ from ..tracing.tracer import Tracer
 from ..worker.settings import get_redis_settings
 
 logger = structlog.get_logger(__name__)
+
+
+async def startup(ctx: dict[str, Any]):
+    """Initialize worker resources on startup."""
+    settings = get_settings()
+
+    # Database
+    engine = create_async_engine(settings.database_url, pool_size=5, max_overflow=10)
+    ctx["db_session_factory"] = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    # Redis 
+    ctx["redis"] = Redis.from_url(settings.redis_url, decode_responses=False)
+
+    # Services
+    ctx["settings"] = settings
+    ctx["cache"] = CacheService(ctx["redis"], settings)
+    ctx["cost"] = CostService(ctx["redis"], settings)
+    ctx["fetcher"] = WebFetcher(
+        timeout_seconds=settings.fetch_timeout_seconds,
+        max_retries=3,
+    )
+    ctx["llm"] = LLMClient(settings)
+    ctx["webhook"] = WebhookService(
+        secret=settings.webhook_secret,
+        timeout=settings.webhook_timeout_seconds,
+        max_retries=settings.webhook_max_retries,
+    )
+    ctx["tracer"] = Tracer(settings.trace_file_path)
+
+    logger.info("worker_started")
+
