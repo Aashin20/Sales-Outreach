@@ -78,3 +78,14 @@ async def run_research_pipeline(ctx: dict[str, Any], job_id: str):
 
     logger.info("task_completed", job_id=job_id)
 
+
+class WorkerSettings:
+    """ARQ worker configuration."""
+    redis_settings = get_redis_settings()
+    functions = [run_research_pipeline]
+    on_startup = startup
+    on_shutdown = shutdown
+    max_jobs = 10
+    job_timeout = 180 
+    retry_jobs = True
+    max_tries = 2
