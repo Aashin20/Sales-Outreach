@@ -4,7 +4,7 @@ import structlog
 from arq import ArqRedis
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from redis.asyncio import Redis
-from app.config import get_settings
+from ..config import get_settings
 from ..services.cache import CacheService
 from ..services.cost import CostService
 from ..services.fetcher import WebFetcher

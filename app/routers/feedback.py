@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.feedback import submit_outreach_feedback
 from ..dependencies import get_authenticated_key, get_db
-from ..models import FeedbackRequest, FeedbackResponse
+from ..models.schemas import FeedbackRequest, FeedbackResponse
 from ..models.database import ApiKey, Job, JobStatus
 
 

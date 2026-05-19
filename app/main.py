@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from app.config import get_settings
+from .config import get_settings
 from .models.database import Base
 from .routers.health import router as health
 from .routers.outreach import router as outreach

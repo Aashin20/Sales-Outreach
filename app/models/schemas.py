@@ -14,7 +14,7 @@ class OutreachRequest(BaseModel):
         ...,
         min_length=3,
         max_length=255,
-        description="Company domain (e.g. 'firmable.com')",
+        description="Company domain",
         examples=["firmable.com"],
     )
     person_name: str = Field(
@@ -22,7 +22,7 @@ class OutreachRequest(BaseModel):
         min_length=2,
         max_length=255,
         description="Full name of the prospect",
-        examples=["Jane Smith"],
+        examples=["John Doe"],
     )
     webhook_url: Optional[str] = Field(
         None,
