@@ -22,3 +22,28 @@ class RetryableFetchError(Exception):
     """Retryable fetch error."""
     pass
 
+
+class WebFetcher:
+    """Async web content fetcher with safety and resilience."""
+
+    def __init__(self, timeout_seconds: int = 10, max_retries: int = 3):
+        self.timeout = timeout_seconds
+        self.max_retries = max_retries
+
+    def _create_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            timeout=httpx.Timeout(self.timeout),
+            follow_redirects=True,
+            max_redirects=3,
+            headers={
+                "User-Agent": "OutreachBot/1.0 (research; +https://outreach-api.example.com)",
+                "Accept": "text/html,application/xhtml+xml,text/plain",
+            },
+        )
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
+        retry=retry_if_exception_type(RetryableFetchError),
+        reraise=True,
+    )
