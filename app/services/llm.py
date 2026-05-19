@@ -94,3 +94,21 @@ class CircuitBreaker:
         # HALF_OPEN — allow one request through
         return True
 
+
+# ── Retryable LLM Errors ────────────────────────────────────────────
+
+
+class RetryableLLMError(Exception):
+    """LLM error that should be retried."""
+    pass
+
+
+class NonRetryableLLMError(Exception):
+    """LLM error that should NOT be retried."""
+    pass
+
+
+class SchemaViolationError(Exception):
+    """LLM output didn't match expected schema."""
+    pass
+
