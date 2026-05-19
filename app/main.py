@@ -8,7 +8,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.config import get_settings
 from .models.database import Base
-from .routers import health, outreach, feedback
+from .routers.health import router as health
+from .routers.outreach import router as outreach
+from .routers.feedback import router as feedback
 from .worker.settings import get_redis_settings
 import uuid
 
@@ -91,4 +93,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"error": "Internal server error", "detail": None},
     )
+
+
+#Routers
+
+app.include_router(health)
+app.include_router(outreach)
+app.include_router(feedback)
+
 
