@@ -263,3 +263,78 @@ class LLMClient:
         raise SchemaViolationError(
             f"Failed to get valid {schema_class.__name__} after {max_schema_retries + 1} attempts: {last_error}"
         )
+
+    # ── Named Tool Calls ─────────────────────────────────────────────
+
+    async def pick_hook(
+        self,
+        company_signals: dict[str, Optional[str]],
+        person_name: str,
+        domain: str,
+    ) -> tuple[HookResult, dict]:
+        """
+        Named tool: pick_hook (v1)
+        Analyzes fetched signals to pick the best outreach hook.
+        """
+        prompt_version = "v1"
+        model = self.settings.groq_model_pick_hook
+        system_prompt = self._load_prompt("pick_hook", prompt_version)
+
+        user_content_parts = [
+            f"Target person: {person_name}",
+            f"Company domain: {domain}",
+        ]
+        for signal_name, content in company_signals.items():
+            if content:
+                user_content_parts.append(f"\n--- {signal_name.upper()} ---\n{content}")
+            else:
+                user_content_parts.append(f"\n--- {signal_name.upper()} ---\n[Not available]")
+
+        user_prompt = "\n".join(user_content_parts)
+
+        result, stats = await self._call_with_schema_validation(
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema_class=HookResult,
+            temperature=0.3,
+        )
+
+        stats["model"] = model
+        stats["prompt_version"] = prompt_version
+        return result, stats
+
+    async def compose_message(
+        self,
+        hook_result: HookResult,
+        person_name: str,
+        domain: str,
+    ) -> tuple[OutreachMessage, dict]:
+        """
+        Named tool: compose_message (v1)
+        Composes a personalized outreach message using the selected hook.
+        """
+        prompt_version = "v1"
+        model = self.settings.groq_model_compose_message
+        system_prompt = self._load_prompt("compose_message", prompt_version)
+
+        user_prompt = (
+            f"Target person: {person_name}\n"
+            f"Company domain: {domain}\n"
+            f"Selected hook: {hook_result.hook}\n"
+            f"Hook reasoning: {hook_result.reasoning}\n"
+            f"Evidence: {json.dumps(hook_result.evidence)}\n"
+            f"Confidence: {hook_result.confidence}\n"
+        )
+
+        result, stats = await self._call_with_schema_validation(
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema_class=OutreachMessage,
+            temperature=0.5, 
+        )
+
+        stats["model"] = model
+        stats["prompt_version"] = prompt_version
+        return result, stats
