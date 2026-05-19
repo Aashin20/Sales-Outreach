@@ -1,16 +1,14 @@
 import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from ..core.feedback import submit_outreach_feedback
+from ..dependencies import get_authenticated_key, get_db
+from ..models import FeedbackRequest, FeedbackResponse
+from ..models.database import ApiKey, Job, JobStatus
 
-from app.core.feedback import submit_outreach_feedback
-from app.dependencies import get_authenticated_key, get_db
-from app.models import FeedbackRequest, FeedbackResponse
-from app.models.database import ApiKey, Job, JobStatus
 
-
-router = APIRouter(prefix="/outreach", tags=["Feedback"])
+router = APIRouter(prefix="/v1/feedback", tags=["Feedback"])
 
 
 @router.post(
