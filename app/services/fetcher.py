@@ -47,3 +47,45 @@ class WebFetcher:
         retry=retry_if_exception_type(RetryableFetchError),
         reraise=True,
     )
+    async def _fetch_url(self, url: str) -> str:
+        """Fetch a URL with retry logic for transient failures."""
+        # Validate URL against SSRF before every attempt (handles redirects)
+        try:
+            validate_url(url)
+        except SSRFError as e:
+            raise FetchError(f"SSRF blocked: {e}")
+
+        async with self._create_client() as client:
+            try:
+                response = await client.get(url)
+
+                # Check for redirect to blocked IPs
+                if response.history:
+                    for redirect in response.history:
+                        try:
+                            validate_url(str(redirect.url))
+                        except SSRFError as e:
+                            raise FetchError(f"SSRF blocked redirect: {e}")
+
+                if response.status_code in RETRYABLE_STATUS_CODES:
+                    raise RetryableFetchError(
+                        f"Retryable status {response.status_code} from {url}"
+                    )
+
+                if response.status_code >= 400:
+                    raise FetchError(
+                        f"Non-retryable status {response.status_code} from {url}"
+                    )
+
+                return response.text
+
+            except httpx.TimeoutException:
+                raise RetryableFetchError(f"Timeout fetching {url}")
+            except httpx.ConnectError:
+                raise RetryableFetchError(f"Connection error for {url}")
+            except (FetchError, RetryableFetchError):
+                raise
+            except Exception as e:
+                raise FetchError(f"Unexpected error fetching {url}: {e}")
+
+ 
