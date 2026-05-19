@@ -77,3 +77,75 @@ class TraceEntry:
             "success": self.success,
         }
 
+
+class Tracer:
+    """
+    Manages trace emission to both JSONL file and database.
+    """
+
+    def __init__(self, trace_file_path: str):
+        self.trace_file_path = trace_file_path
+        os.makedirs(os.path.dirname(trace_file_path), exist_ok=True)
+
+    @asynccontextmanager
+    async def trace_stage(
+        self,
+        job_id: UUID,
+        stage: str,
+        db: Optional[AsyncSession] = None,
+        model: Optional[str] = None,
+        prompt_version: Optional[str] = None,
+    ):
+        """
+        Context manager that automatically records timing and errors for a stage.
+        """
+        entry = TraceEntry(
+            job_id=job_id,
+            stage=stage,
+            model=model,
+            prompt_version=prompt_version,
+        )
+        try:
+            yield entry
+        except Exception as e:
+            entry.set_error(str(e))
+            raise
+        finally:
+            # Write to JSONL file
+            await self._write_jsonl(entry)
+            # Write to database if session provided
+            if db:
+                await self._write_db(entry, db)
+
+    async def _write_jsonl(self, entry: TraceEntry):
+        """Append trace entry to JSONL file."""
+        try:
+            line = json.dumps(entry.to_dict()) + "\n"
+            with open(self.trace_file_path, "a") as f:
+                f.write(line)
+        except Exception as e:
+            logger.error("trace_write_failed", error=str(e), stage=entry.stage)
+
+    async def _write_db(self, entry: TraceEntry, db: AsyncSession):
+        """Write trace entry to database."""
+        try:
+            trace_log = TraceLog(
+                job_id=entry.job_id,
+                stage=entry.stage,
+                timestamp=entry.timestamp,
+                model=entry.model,
+                prompt_version=entry.prompt_version,
+                tokens_in=entry.tokens_in,
+                tokens_out=entry.tokens_out,
+                cost_usd=entry.cost_usd,
+                latency_ms=entry.latency_ms,
+                cache_hit=entry.cache_hit,
+                retries=entry.retries,
+                decision=entry.decision,
+                error=entry.error,
+                success=entry.success,
+            )
+            db.add(trace_log)
+            await db.commit()
+        except Exception as e:
+            logger.error("trace_db_write_failed", error=str(e), stage=entry.stage)
