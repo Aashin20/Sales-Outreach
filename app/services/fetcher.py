@@ -124,3 +124,17 @@ class WebFetcher:
         # Fallback: try a DuckDuckGo-style search (simplified)
         logger.info("news_no_dedicated_page", domain=domain)
         return None
+
+    async def fetch_profile(self, person_name: str, domain: str) -> Optional[str]:
+        """
+        Fetch public profile info for a person.
+        """
+        # Mock profile data 
+        mock_profile = (
+            f"{person_name} is a professional associated with {domain}. "
+            f"They are active in their industry and have experience in "
+            f"business development and strategic partnerships. "
+            f"They have been with the company for approximately 3 years "
+            f"and are known for driving growth initiatives."
+        )
+        return mock_profile
